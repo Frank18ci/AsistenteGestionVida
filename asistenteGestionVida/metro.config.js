@@ -4,7 +4,7 @@ const defaultConfig = getDefaultConfig(__dirname);
 
 const { assetExts, sourceExts } = defaultConfig.resolver;
 
-return {
+module.exports = {
   ...defaultConfig,
   resolver: {
     ...defaultConfig.resolver,
