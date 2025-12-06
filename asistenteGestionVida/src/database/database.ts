@@ -1,12 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 
-// Open the database asynchronously
+
 const db = SQLite.openDatabaseAsync('asistente.db');
 
 export const initDatabase = async () => {
   try {
     const database = await db;
-    // Create tables transactionally
+    
     await database.execAsync(`
       PRAGMA journal_mode = WAL;
       
@@ -27,10 +27,23 @@ export const initDatabase = async () => {
 
       CREATE TABLE IF NOT EXISTS notes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
         content TEXT NOT NULL,
         createdAt TEXT NOT NULL
       );
     `);
+
+    try {
+      const result = await database.getAllAsync("PRAGMA table_info(notes)");
+      const hasTitle = (result as any[]).some(column => column.name === 'title');
+      if (!hasTitle) {
+        await database.execAsync('ALTER TABLE notes ADD COLUMN title TEXT;');
+        console.log('Added title column to notes table');
+      }
+    } catch (error) {
+      console.log('Migration check failed (might be already up to date):', error);
+    }
+
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Error initializing database:', error);
