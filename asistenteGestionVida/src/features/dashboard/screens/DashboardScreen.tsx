@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CurrencyInfo, getMultipleExchangeRates } from '../../../services/currencyService'
 import { getWeather, getWeatherEmoji, getWeatherIconUrl, WeatherData } from '../../../services/weatherService'
 
@@ -16,26 +17,30 @@ export default function DashboardScreen () {
   const [currencyInfo, setCurrencyInfo] = useState<CurrencyInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [imageError, setImageError] = useState(false)
+  const insets = useSafeAreaInsets()
 
-  const loadData = () => {
+  const loadData = useCallback(async () => {
     try {
-      // Ambas funciones ahora son síncronas
-      const rateData = getMultipleExchangeRates()
+      // Obtener datos de tipo de cambio desde la API
+      const rateData = await getMultipleExchangeRates()
       setCurrencyInfo(rateData)
 
-      const weatherData = getWeather('Arequipa')
+      // Obtener datos del clima desde la API (usa ubicación del usuario)
+      const weatherData = await getWeather('Arequipa')
       setWeather(weatherData)
+      setImageError(false) // Resetear error de imagen al cargar nuevos datos
     } catch (error) {
       console.error('Error cargando datos:', error)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -82,7 +87,7 @@ export default function DashboardScreen () {
       }
     >
       {/* Header con saludo */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 50) }]}>
         <Text style={styles.greeting}>{getGreeting()} {getTimeEmoji()}</Text>
         <Text style={styles.headerTitle}>Mi Asistente de Vida</Text>
         <Text style={styles.date}>
@@ -108,10 +113,20 @@ export default function DashboardScreen () {
           <View style={styles.weatherContent}>
             <View style={styles.weatherMain}>
               <View style={styles.tempContainer}>
-                <Image
-                  source={{ uri: getWeatherIconUrl(weather.icon) }}
-                  style={styles.weatherIcon}
-                />
+                {!imageError ? (
+                  <Image
+                    source={{ uri: getWeatherIconUrl(weather.icon) }}
+                    style={styles.weatherIcon}
+                    onError={() => setImageError(true)}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.weatherIconFallback}>
+                    <Text style={styles.weatherIconFallbackText}>
+                      {getWeatherEmoji(weather.icon)}
+                    </Text>
+                  </View>
+                )}
                 <Text style={styles.tempText}>{Math.round(weather.temp)}°C</Text>
               </View>
               <Text style={styles.weatherDescription}>
@@ -253,7 +268,6 @@ const styles = StyleSheet.create({
   // Header
   header: {
     backgroundColor: '#6366F1',
-    paddingTop: 50,
     paddingBottom: 30,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
@@ -326,6 +340,15 @@ const styles = StyleSheet.create({
   weatherIcon: {
     width: 80,
     height: 80,
+  },
+  weatherIconFallback: {
+    width: 80,
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  weatherIconFallbackText: {
+    fontSize: 60,
   },
   tempText: {
     fontSize: 52,
