@@ -1,3 +1,4 @@
+import { configureNotificationChannel, registerForPushNotificationsAsync } from '@/src/features/tasks/service/NotificationService';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useState } from 'react';
@@ -16,6 +17,12 @@ export default function RootLayout() {
         // 1. Inicializamos la Base de Datos
         console.log('Iniciando carga de Base de Datos...');
         await initDatabase();
+
+        console.log('Configurar canal de notificaciones...');
+        await configureNotificationChannel();
+
+        console.log('Registrar permisos de notificaciones...');
+        await registerForPushNotificationsAsync();
         
         // 2. Aquí podrías cargar fuentes personalizadas si quisieras
         // await Font.loadAsync({ ... });

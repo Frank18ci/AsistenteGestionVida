@@ -21,8 +21,15 @@ export const initDatabase = async () => {
       CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
+        description TEXT,
+        date TEXT NOT NULL,
+        startTime TEXT NOT NULL,
+        endTime TEXT NOT NULL,
+        alarmBefore INTEGER,
+        type TEXT NOT NULL,
         isCompleted INTEGER DEFAULT 0,
-        dueDate TEXT
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        notificationId TEXT
       );
 
       CREATE TABLE IF NOT EXISTS notes (
