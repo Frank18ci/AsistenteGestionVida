@@ -1,89 +1,520 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-//import { getExchangeRate } from '../../../services/currencyService';
-//import { getWeather } from '../../../services/weatherService';
+import React, { useCallback, useEffect, useState } from 'react'
+import {
+  ActivityIndicator,
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { CurrencyInfo, getMultipleExchangeRates } from '../../../services/currencyService'
+import { getWeather, getWeatherEmoji, getWeatherIconUrl, WeatherData } from '../../../services/weatherService'
 
-export default function DashboardScreen() {
-  const [weather, setWeather] = useState<any>(null);
-  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function DashboardScreen () {
+  const [weather, setWeather] = useState<WeatherData | null>(null)
+  const [currencyInfo, setCurrencyInfo] = useState<CurrencyInfo | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [imageError, setImageError] = useState(false)
+  const insets = useSafeAreaInsets()
+
+  const loadData = useCallback(async () => {
+    try {
+      // Obtener datos de tipo de cambio desde la API
+      const rateData = await getMultipleExchangeRates()
+      setCurrencyInfo(rateData)
+
+      // Obtener datos del clima desde la API (usa ubicación del usuario)
+      const weatherData = await getWeather('Arequipa')
+      setWeather(weatherData)
+      setImageError(false) // Resetear error de imagen al cargar nuevos datos
+    } catch (error) {
+      console.error('Error cargando datos:', error)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
-    const loadData = async () => {
-     // const weatherData = await getWeather();
-     // const rateData = await getExchangeRate();
-      
-      //setWeather(weatherData);
-      //setExchangeRate(rateData);
-      setLoading(false);
-    };
+    loadData()
+  }, [loadData])
 
-    loadData();
-  }, []);
+  const onRefresh = () => {
+    setRefreshing(true)
+    loadData()
+  }
+
+  // Obtener saludo según la hora del día
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Buenos días'
+    if (hour < 18) return 'Buenas tardes'
+    return 'Buenas noches'
+  }
+
+  // Obtener emoji según la hora
+  const getTimeEmoji = () => {
+    const hour = new Date().getHours()
+    if (hour < 6) return '🌙'
+    if (hour < 12) return '🌅'
+    if (hour < 18) return '☀️'
+    if (hour < 21) return '🌆'
+    return '🌙'
+  }
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2f95dc" />
-        <Text>Cargando información del día...</Text>
+        <ActivityIndicator size="large" color="#6366F1" />
+        <Text style={styles.loadingText}>Cargando información del día...</Text>
       </View>
-    );
+    )
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.headerTitle}>Hola, Usuario 👋</Text>
-      
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={['#6366F1']}
+          tintColor="#6366F1"
+        />
+      }
+    >
+      {/* Header con saludo */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 50) }]}>
+        <Text style={styles.greeting}>{getGreeting()} {getTimeEmoji()}</Text>
+        <Text style={styles.headerTitle}>Mi Asistente de Vida</Text>
+        <Text style={styles.date}>
+          {new Date().toLocaleDateString('es-PE', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}
+        </Text>
+      </View>
+
       {/* Tarjeta de Clima */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Clima Actual</Text>
+      <View style={styles.weatherCard}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>🌤️ Clima Actual</Text>
+          {weather && (
+            <Text style={styles.cityBadge}>📍 {weather.city}</Text>
+          )}
+        </View>
+
         {weather ? (
-          <View>
-            <Text style={styles.bigText}>{Math.round(weather.temp)}°C</Text>
-            <Text style={styles.subText}>{weather.description}</Text>
-            <Text style={styles.cityText}>📍 {weather.city}</Text>
+          <View style={styles.weatherContent}>
+            <View style={styles.weatherMain}>
+              <View style={styles.tempContainer}>
+                {!imageError ? (
+                  <Image
+                    source={{ uri: getWeatherIconUrl(weather.icon) }}
+                    style={styles.weatherIcon}
+                    onError={() => setImageError(true)}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.weatherIconFallback}>
+                    <Text style={styles.weatherIconFallbackText}>
+                      {getWeatherEmoji(weather.icon)}
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.tempText}>{Math.round(weather.temp)}°C</Text>
+              </View>
+              <Text style={styles.weatherDescription}>
+                {getWeatherEmoji(weather.icon)} {weather.description}
+              </Text>
+            </View>
+
+            <View style={styles.weatherDetails}>
+              <View style={styles.weatherDetailItem}>
+                <Text style={styles.detailLabel}>Sensación</Text>
+                <Text style={styles.detailValue}>{Math.round(weather.feelsLike)}°C</Text>
+              </View>
+              <View style={styles.weatherDetailItem}>
+                <Text style={styles.detailLabel}>Humedad</Text>
+                <Text style={styles.detailValue}>{weather.humidity}%</Text>
+              </View>
+              <View style={styles.weatherDetailItem}>
+                <Text style={styles.detailLabel}>Viento</Text>
+                <Text style={styles.detailValue}>{weather.windSpeed} m/s</Text>
+              </View>
+            </View>
+
+            <View style={styles.tempRange}>
+              <Text style={styles.tempRangeText}>
+                ⬇️ {Math.round(weather.tempMin)}° / ⬆️ {Math.round(weather.tempMax)}°
+              </Text>
+            </View>
           </View>
         ) : (
-          <Text>No se pudo cargar el clima.</Text>
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorEmoji}>😕</Text>
+            <Text style={styles.errorText}>No se pudo cargar el clima</Text>
+            <Text style={styles.errorHint}>Desliza hacia abajo para reintentar</Text>
+          </View>
         )}
       </View>
 
-      {/* Tarjeta de Finanzas Globales */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Economía</Text>
-        <Text style={styles.label}>Tipo de Cambio (USD a PEN):</Text>
-        <Text style={styles.bigText}>S/ {exchangeRate?.toFixed(3)}</Text>
+      {/* Tarjeta de Economía */}
+      <View style={styles.currencyCard}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>💰 Economía</Text>
+          {currencyInfo && (
+            <Text style={styles.updateBadge}>
+              📅 {currencyInfo.lastUpdate}
+            </Text>
+          )}
+        </View>
+
+        {currencyInfo ? (
+          <View style={styles.currencyContent}>
+            <View style={styles.mainRate}>
+              <Text style={styles.rateLabel}>Dólar Americano (USD)</Text>
+              <View style={styles.rateValueContainer}>
+                <Text style={styles.rateValue}>S/ {currencyInfo.usdToPen.toFixed(3)}</Text>
+                <Text style={styles.rateCurrency}>PEN</Text>
+              </View>
+            </View>
+
+            <View style={styles.otherRates}>
+              <View style={styles.rateItem}>
+                <Text style={styles.smallRateLabel}>EUR → PEN</Text>
+                <Text style={styles.smallRateValue}>S/ {currencyInfo.eurToPen.toFixed(3)}</Text>
+              </View>
+              <View style={styles.rateDivider} />
+              <View style={styles.rateItem}>
+                <Text style={styles.smallRateLabel}>USD → EUR</Text>
+                <Text style={styles.smallRateValue}>€ {currencyInfo.usdToEur.toFixed(3)}</Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorEmoji}>📉</Text>
+            <Text style={styles.errorText}>No se pudo cargar el tipo de cambio</Text>
+            <Text style={styles.errorHint}>Desliza hacia abajo para reintentar</Text>
+          </View>
+        )}
       </View>
 
-      {/* Resumen General (Placeholder para conectar con otros módulos) */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Resumen del día</Text>
-        <Text style={{ color: 'gray' }}>Aquí mostraremos tareas pendientes y saldo actual próximamente.</Text>
+      {/* Resumen General */}
+      <View style={styles.summaryCard}>
+        <Text style={styles.cardTitle}>📋 Resumen del día</Text>
+        <View style={styles.summaryContent}>
+          <View style={styles.summaryItem}>
+            <View style={[styles.summaryIcon, { backgroundColor: '#FEE2E2' }]}>
+              <Text style={styles.summaryIconText}>✅</Text>
+            </View>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Tareas</Text>
+              <Text style={styles.summaryValue}>Próximamente</Text>
+            </View>
+          </View>
+
+          <View style={styles.summaryItem}>
+            <View style={[styles.summaryIcon, { backgroundColor: '#DBEAFE' }]}>
+              <Text style={styles.summaryIconText}>💵</Text>
+            </View>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Finanzas</Text>
+              <Text style={styles.summaryValue}>Próximamente</Text>
+            </View>
+          </View>
+
+          <View style={styles.summaryItem}>
+            <View style={[styles.summaryIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Text style={styles.summaryIconText}>📝</Text>
+            </View>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Notas</Text>
+              <Text style={styles.summaryValue}>Próximamente</Text>
+            </View>
+          </View>
+        </View>
       </View>
+
+      {/* Espacio al final */}
+      <View style={{ height: 30 }} />
     </ScrollView>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f5f5f5' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', marginBottom: 20 },
-  card: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 15,
+  container: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  loadingText: {
+    marginTop: 15,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+
+  // Header
+  header: {
+    backgroundColor: '#6366F1',
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  greeting: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 5,
+  },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 5,
+  },
+  date: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textTransform: 'capitalize',
+  },
+
+  // Cards comunes
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 15,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  cityBadge: {
+    fontSize: 12,
+    color: '#6B7280',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  updateBadge: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+
+  // Weather Card
+  weatherCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 20,
+    marginHorizontal: 15,
+    marginTop: -15,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  weatherContent: {},
+  weatherMain: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  tempContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  weatherIcon: {
+    width: 80,
+    height: 80,
+  },
+  weatherIconFallback: {
+    width: 80,
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  weatherIconFallbackText: {
+    fontSize: 60,
+  },
+  tempText: {
+    fontSize: 52,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  weatherDescription: {
+    fontSize: 18,
+    textTransform: 'capitalize',
+    color: '#6B7280',
+    marginTop: 5,
+  },
+  weatherDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 10,
+  },
+  weatherDetailItem: {
+    alignItems: 'center',
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  tempRange: {
+    alignItems: 'center',
+  },
+  tempRangeText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+
+  // Currency Card
+  currencyCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 20,
+    marginHorizontal: 15,
+    marginTop: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 3,
   },
-  cardTitle: { fontSize: 18, fontWeight: '600', marginBottom: 10, color: '#444' },
-  bigText: { fontSize: 32, fontWeight: 'bold', color: '#2f95dc' },
-  subText: { fontSize: 16, textTransform: 'capitalize', color: '#666' },
-  cityText: { marginTop: 5, fontStyle: 'italic', color: '#888' },
-  label: { fontSize: 14, color: '#666' },
-  section: { marginTop: 20 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
-});
+  currencyContent: {},
+  mainRate: {
+    alignItems: 'center',
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  rateLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  rateValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  rateValue: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+  rateCurrency: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginLeft: 8,
+  },
+  otherRates: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 15,
+  },
+  rateItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  rateDivider: {
+    width: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  smallRateLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 4,
+  },
+  smallRateValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+  },
+
+  // Summary Card
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 20,
+    marginHorizontal: 15,
+    marginTop: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  summaryContent: {
+    marginTop: 10,
+  },
+  summaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  summaryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  summaryIconText: {
+    fontSize: 20,
+  },
+  summaryInfo: {},
+  summaryLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginTop: 2,
+  },
+
+  // Error states
+  errorContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  errorEmoji: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 5,
+  },
+  errorHint: {
+    fontSize: 13,
+    color: '#9CA3AF',
+  },
+})
