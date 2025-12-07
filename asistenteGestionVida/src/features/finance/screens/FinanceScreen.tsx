@@ -98,7 +98,7 @@ export default function FinanceScreen() {
         return icons[category] || '📝';
     };
 
-    const formatDate = (date: Date): string => {
+      const formatDate = (date: Date): string => {
         const now = new Date();
         const diffTime = Math.abs(now.getTime() - date.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -108,7 +108,7 @@ export default function FinanceScreen() {
         } else if (diffDays < 7) {
             return `${diffDays} días, ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
         } else {
-            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
         }
     };
 
