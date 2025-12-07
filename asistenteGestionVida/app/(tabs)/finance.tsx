@@ -1,17 +1,8 @@
+import FinanceScreen from '@/src/features/finance/screens/FinanceScreen';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 
 export default function FinanceRoute() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Finance Module</Text>
-      <Text style={styles.subText}>Member A Workspace</Text>
-    </View>
+      <FinanceScreen />
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  text: { fontSize: 20, fontWeight: 'bold' },
-  subText: { color: 'gray', marginTop: 10 }
-});
