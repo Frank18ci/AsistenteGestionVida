@@ -40,15 +40,27 @@ export async function registerForPushNotificationsAsync() {
     return null;
   }
 
+  // Intentar obtener el projectId para notificaciones push (opcional)
   const projectId =
     Constants?.expoConfig?.extra?.eas?.projectId ??
     Constants?.easConfig?.projectId;
 
-  const token = await Notifications.getExpoPushTokenAsync({
-    projectId,
-  });
-
-  return token.data;
+  // Solo obtener el token push si tenemos projectId (para notificaciones push)
+  // Si no hay projectId, continuamos sin error ya que usamos notificaciones locales
+  if (projectId) {
+    try {
+      const token = await Notifications.getExpoPushTokenAsync({
+        projectId,
+      });
+      return token.data;
+    } catch (error) {
+      console.log("No se pudo obtener el token push (solo notificaciones locales disponibles):", error);
+      return null;
+    }
+  } else {
+    console.log("No hay projectId configurado. Usando solo notificaciones locales.");
+    return null;
+  }
 }
 
 // ----------------------------------------
@@ -78,7 +90,7 @@ export async function scheduleTaskNootification(
       body,
       sound: "default", // soportado
     },
-    
+
 trigger: {
   type: Notifications.SchedulableTriggerInputTypes.DATE,
   date: triggerDate,
@@ -91,26 +103,38 @@ trigger: {
 export async function scheduleTaskNotification(
   title: string,
   body: string,
-  triggerDate: Date
+  triggerDate: Date | null
 ): Promise<string | null> {
-  if (triggerDate <= new Date()) return null;
+  if (!triggerDate || triggerDate <= new Date()) {
+    console.log("No se puede programar notificación: fecha inválida o en el pasado", triggerDate);
+    return null;
+  }
 
   try {
+    console.log("Programando notificación:", {
+      title,
+      body,
+      triggerDate: triggerDate.toISOString(),
+      triggerDateLocal: triggerDate.toLocaleString(),
+    });
+
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
         sound: true,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: triggerDate
-        }
+        date: triggerDate,
+      }
     });
 
+    console.log("Notificación programada exitosamente con ID:", id);
     return id; // string
   } catch (err) {
-    console.log("Error programando notificación:", err);
+    console.error("Error programando notificación:", err);
     return null;
   }
 }

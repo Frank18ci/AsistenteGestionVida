@@ -28,7 +28,7 @@ export default function AddTaskModal({
   task
 }: AddTaskModalProps) {
 
-  const isEditing = !!task;   
+  const isEditing = !!task;
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -42,10 +42,19 @@ export default function AddTaskModal({
   const [endTime, setEndTime] = useState(new Date());
   const [showEndPicker, setShowEndPicker] = useState(false);
 
+  // Actualizar hora de fin automáticamente cuando cambia la hora de inicio
+  useEffect(() => {
+    if (!task) { // Solo para nuevas tareas, no al editar
+      const newEndTime = new Date(startTime);
+      newEndTime.setHours(newEndTime.getHours() + 1);
+      setEndTime(newEndTime);
+    }
+  }, [startTime, task]);
+
   const [alarmBefore, setAlarmBefore] = useState<string>("");
   const [type, setType] = useState<"work" | "personal">("work");
 
-  
+
   useEffect(() => {
     if (task) {
       setTitle(task.title);
@@ -61,14 +70,18 @@ export default function AddTaskModal({
       // Si es nueva, limpiar todo
       setTitle("");
       setDescription("");
-      setDate(new Date());
-      setStartTime(new Date());
-      setEndTime(new Date());
+      const now = new Date();
+      setDate(now);
+      setStartTime(now);
+      // Establecer hora de fin una hora después de la hora de inicio
+      const endTimeDefault = new Date(now);
+      endTimeDefault.setHours(endTimeDefault.getHours() + 1);
+      setEndTime(endTimeDefault);
       setAlarmBefore("");
       setType("work");
     }
   }, [task, visible]);
-  
+
 
   const formatDate = (d: Date) =>
     d.toISOString().split("T")[0];
@@ -76,7 +89,7 @@ export default function AddTaskModal({
   const formatTime = (d: Date) =>
     d.toTimeString().substring(0, 5);
 
-  
+
   const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert("Error", "El título es obligatorio.");
@@ -103,7 +116,7 @@ export default function AddTaskModal({
     }
 
     const newTask: Task = {
-      id: task?.id,  
+      id: task?.id,
       title,
       description,
       date: fDate,
@@ -147,7 +160,7 @@ export default function AddTaskModal({
             onChangeText={setDescription}
           />
 
-          
+
           <TouchableOpacity
             onPress={() => setShowDatePicker(true)}
             style={styles.selector}
@@ -181,7 +194,15 @@ export default function AddTaskModal({
               is24Hour={true}
               onChange={(e, selected) => {
                 setShowStartPicker(false);
-                if (selected) setStartTime(selected);
+                if (selected) {
+                  setStartTime(selected);
+                  // Actualizar hora de fin automáticamente (una hora después)
+                  if (!task) {
+                    const newEndTime = new Date(selected);
+                    newEndTime.setHours(newEndTime.getHours() + 1);
+                    setEndTime(newEndTime);
+                  }
+                }
               }}
             />
           )}
@@ -206,7 +227,7 @@ export default function AddTaskModal({
             />
           )}
 
-          
+
           <TextInput
             style={styles.input}
             keyboardType="numeric"
@@ -217,7 +238,7 @@ export default function AddTaskModal({
             placeholder="Minutos antes para alarma"
           />
 
-          
+
           <View style={styles.pickerContainer}>
             <Picker selectedValue={type} onValueChange={setType}>
               <Picker.Item label="Trabajo" value="work" />
@@ -225,7 +246,7 @@ export default function AddTaskModal({
             </Picker>
           </View>
 
-          
+
           <View style={styles.buttons}>
             <TouchableOpacity style={styles.cancel} onPress={onClose}>
               <Text style={styles.btnText}>Cancelar</Text>

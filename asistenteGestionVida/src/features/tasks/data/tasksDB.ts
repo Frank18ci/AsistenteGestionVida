@@ -12,9 +12,9 @@ const db = SQLite.openDatabaseAsync("asistente.db");
 // ----------------------------------------------------
 
 const getNotificationDate = (
-  date: string,      
-  startTime: string, 
-  alarmBefore?: number 
+  date: string,
+  startTime: string,
+  alarmBefore?: number
 ) => {
   const [year, month, day] = date.split("-").map(Number);
   const [h, m] = startTime.split(":").map(Number);
@@ -59,7 +59,7 @@ export const hasTaskConflict = async (date: string, start: string, end: string) 
   const database = await db;
 
   const result = await database.getFirstAsync(
-    `SELECT * FROM tasks 
+    `SELECT * FROM tasks
      WHERE date = ?
      AND (
        (startTime <= ? AND endTime > ?) OR
@@ -79,7 +79,7 @@ export const addTask = async (task: Task) => {
 
   // Insertar tarea
   await database.runAsync(
-    `INSERT INTO tasks 
+    `INSERT INTO tasks
      (title, description, date, startTime, endTime, alarmBefore, type, isCompleted)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -114,11 +114,15 @@ export const addTask = async (task: Task) => {
       created.alarmBefore
     );
 
-    notificationId = await scheduleTaskNotification(
-      "Tu tarea está por empezar",
-      `${created.title} comienza a las ${created.startTime}`,
-      trigger!
-    );
+    if (trigger) {
+      notificationId = await scheduleTaskNotification(
+        "Tu tarea está por empezar",
+        `${created.title} comienza a las ${created.startTime}`,
+        trigger
+      );
+    } else {
+      console.log("No se pudo programar notificación: la fecha está en el pasado");
+    }
   }
 
   // Guardar notificationId
@@ -147,8 +151,8 @@ export const updateTask = async (task: Task) => {
 
   // Actualizar datos en BD
   await database.runAsync(
-    `UPDATE tasks SET 
-      title=?, description=?, date=?, startTime=?, endTime=?, 
+    `UPDATE tasks SET
+      title=?, description=?, date=?, startTime=?, endTime=?,
       alarmBefore=?, type=?, isCompleted=?
      WHERE id=?`,
     [
@@ -174,11 +178,15 @@ export const updateTask = async (task: Task) => {
       task.alarmBefore
     );
 
-    notificationId = await scheduleTaskNotification(
-      "Tarea reprogramada",
-      `${task.title} inicia a las ${task.startTime}`,
-      trigger!
-    );
+    if (trigger) {
+      notificationId = await scheduleTaskNotification(
+        "Tarea reprogramada",
+        `${task.title} inicia a las ${task.startTime}`,
+        trigger
+      );
+    } else {
+      console.log("No se pudo programar notificación: la fecha está en el pasado");
+    }
   }
 
   // Guardar nueva notificación
