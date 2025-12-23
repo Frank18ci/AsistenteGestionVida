@@ -2,18 +2,21 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const activeColor = '#2f95dc';
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: activeColor,
         headerShown: true,
         tabBarStyle: {
-          paddingBottom: 5,
-          height: 60,
+          paddingBottom: Math.max(insets.bottom, 5),
+          height: 60 + Math.max(insets.bottom, 0),
         },
       }}>
       <Tabs.Screen
